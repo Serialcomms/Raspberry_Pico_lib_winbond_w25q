@@ -1,0 +1,18 @@
+    // For correct operation of Winbond W25Q series flash memory
+    // ========================================================= 
+    //
+    // Conditions below are for breadboard/breakout wiring style
+    // using Adafruit W25Q64JV Flash Breakout with buffering and
+    // level shifters supporting 3V or 5V power and SPI logic.
+    //
+    // 1. SPI Clock Polarity >>> must be SPI_CPOL_0 
+    // 2. SPI Clock Phase    >>> must be SPI_CPHA_1 
+    //
+    // Data read/write errors may be observed if 1 & 2 are set incorrectly
+    // Note that this may only become apparent at higher clock frequencies
+    // i.e. flash may read correctly at low clock frequencies (say 100kHz)
+    // when SPI clock polarity and/or phase are set incorrectly or left at
+    // their respective default values.
+    //
+    // Further testing is recommended if using flash on custom PCB designs
+    // or with other buffered and/or level shifted flash breakout boards.

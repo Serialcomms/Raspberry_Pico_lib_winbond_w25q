@@ -1,4 +1,6 @@
-# Raspberry Pico lib Winbond w25q (September 2026 update)
+# Raspberry Pico lib Winbond w25q 
+
+(September 2026 update)
 
 Raspberry Pico device driver library for Winbond W25Q flash memory devices using the Pico's DMA and SPI peripherals.
 

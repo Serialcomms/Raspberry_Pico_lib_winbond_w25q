@@ -15,10 +15,11 @@
 
 // Winbond W25Q Page Program Time: Typical = 0.4ms, Maximum = 3.0ms
 
-static const uint16_t full_page_size = (uint16_t) WINBOND_FLASH_PAGE_SIZE;
-
 static uint32_t winbond_page_program(pico_spi_device_t *pico_spi, uint32_t page_address, const uint8_t *page_data, uint16_t page_length);
 static uint32_t winbond_reflash_4k_sector(pico_spi_device_t *flash_spi, uint32_t sector_address);
+static inline bool winbond_check_part_page_wrap(uint32_t part_page_address, uint32_t part_page_length);
+
+static const uint16_t full_page_size = (uint16_t) WINBOND_FLASH_PAGE_SIZE;
 
 uint32_t winbond_program_full_page(pico_spi_device_t *pico_spi, uint32_t full_page_address, const uint8_t *full_page_data) {
 
@@ -27,7 +28,7 @@ uint32_t winbond_program_full_page(pico_spi_device_t *pico_spi, uint32_t full_pa
     if (full_page_address % full_page_size == 0) {
 
         bytes_programmed = winbond_page_program(pico_spi, full_page_address, full_page_data, full_page_size);
-    
+
     } else {
 
         printf("ERROR: Winbond Full Page Program Address (%08X) is not 256-Byte aligned (%08X)\n", 
@@ -43,17 +44,32 @@ uint32_t winbond_program_part_page(pico_spi_device_t *pico_spi, uint32_t part_pa
 
     uint32_t bytes_programmed = 0;
 
-    if (part_page_length > 0 && part_page_length < 256) {
+    if (part_page_length > 0 && part_page_length <= full_page_size) {
 
-        bytes_programmed = winbond_page_program(pico_spi, part_page_address, part_page_data, part_page_length);
+        bool part_page_wrap = winbond_check_part_page_wrap(part_page_address, part_page_length);
 
-    } else if (part_page_length == 256 && (part_page_address % part_page_length == 0)) {
+        if (part_page_wrap == false) {
+        
+            bytes_programmed = winbond_page_program(pico_spi, part_page_address, part_page_data, part_page_length);
 
-        bytes_programmed = winbond_page_program(pico_spi, part_page_address, part_page_data, part_page_length);
+        } else {
 
-    } else {
+            printf("ERROR: PART PAGE PROGRAM: Winbond Part Page Program, page wrap = true\r\n");
 
-        printf("ERROR: Winbond Part Page Program, length is zero or address not 256-Byte aligned (%08X)\n", (uint)part_page_address);
+        }
+
+    } else {    
+
+        if (part_page_length == 0) {
+
+            printf("ERROR: Winbond Part Page Program, length = zero\r\n");
+
+        } else {
+
+            printf("ERROR: Winbond Part Page Program, length is > 256 bytes\r\n");
+
+        }
+        
     }
 
     return bytes_programmed;
@@ -63,6 +79,8 @@ uint32_t winbond_program_part_page(pico_spi_device_t *pico_spi, uint32_t part_pa
 static uint32_t winbond_page_program(pico_spi_device_t *pico_spi, uint32_t page_address, const uint8_t *page_data, uint16_t page_length) {
 
     int spi_write_bytes = 0;
+
+    uint32_t flash_write_bytes = 0;
 
     winbond_set_command_and_address(PAGE_PROGRAM, page_address);
 
@@ -74,27 +92,37 @@ static uint32_t winbond_page_program(pico_spi_device_t *pico_spi, uint32_t page_
 
         spi_write_bytes = spi_write_blocking(pico_spi->device, command_buffer, 4);
 
-        if (spi_write_bytes > 0) {
-
+        if (spi_write_bytes == 4) {
+        
             winbond_wait_for_spi_idle(pico_spi); // wait for page program command to complete
 
-            spi_write_bytes = spi_write_blocking(pico_spi->device, page_data, page_length);
+            flash_write_bytes = spi_write_blocking(pico_spi->device, page_data, page_length);
 
+        } else {
+
+            printf("Winbond page program, insufficient SPI write bytes expected/received = 4/%i\r\n ",  spi_write_bytes );
         }
 
         winbond_chip_release(pico_spi);
 
-        winbond_wait_for_write_complete(pico_spi);  
+        bool write_complete = winbond_wait_for_write_complete(pico_spi, 5);  
 
-        return (uint32_t)spi_write_bytes;
+        if (write_complete == false) {
+            
+            flash_write_bytes = 0;
 
+            printf("ERROR: Winbond Flash Page Program timeout after %i milliseconds\n", 5);
+
+        }    
+        
     } else {
 
         printf("ERROR: Winbond Flash is not write-enabled\n");
 
-        return 0;
-
     }
+
+    return flash_write_bytes;
+
 }
 
 uint32_t winbond_update_4k_sector(pico_spi_device_t *pico_spi, uint32_t sector_address, uint32_t offset_in_sector, const uint8_t *new_data, size_t new_length) {
@@ -136,7 +164,7 @@ uint32_t winbond_update_4k_sector(pico_spi_device_t *pico_spi, uint32_t sector_a
     return spi_read_bytes;
 }
 
-static uint32_t winbond_reflash_4k_sector(pico_spi_device_t *pico_spi, uint32_t sector_address) {
+static inline uint32_t winbond_reflash_4k_sector(pico_spi_device_t *pico_spi, uint32_t sector_address) {
     
     uint32_t erase_bytes = winbond_erase_4k_sector(pico_spi, sector_address);
 
@@ -151,5 +179,15 @@ static uint32_t winbond_reflash_4k_sector(pico_spi_device_t *pico_spi, uint32_t 
     }
 
     return erase_bytes;
+
+}
+
+static inline bool winbond_check_part_page_wrap(uint32_t part_page_address, uint32_t part_page_length) {
+
+    uint32_t page_wrap_length = (part_page_address % full_page_size) + part_page_length;
+
+    bool part_page_wrap = (page_wrap_length > full_page_size);
+
+    return part_page_wrap;
 
 }

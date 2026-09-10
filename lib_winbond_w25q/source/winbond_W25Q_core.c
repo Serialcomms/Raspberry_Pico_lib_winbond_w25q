@@ -55,13 +55,34 @@ void winbond_wait_for_spi_idle(pico_spi_device_t *pico_spi) {
     busy_wait_us(1);
 }
 
-void winbond_wait_for_write_complete(pico_spi_device_t *pico_spi) {
+bool winbond_wait_for_write_complete(pico_spi_device_t *pico_spi, uint32_t wait_milliseconds) {
 
-    while (winbond_get_write_busy(pico_spi)) {
+    bool write_busy = 0;
+    bool wait_timeout = false;
+
+    absolute_time_t write_busy_timeout = make_timeout_time_ms(wait_milliseconds);
+   
+    do {
+
+        busy_wait_us(500);
+
+        write_busy = winbond_get_write_busy(pico_spi);
+        
+        wait_timeout = time_reached(write_busy_timeout);
+
+    } while (wait_timeout == false && write_busy == true); 
     
-        busy_wait_us(1500);
+    if (wait_timeout == true) {
 
+        printf("ERROR: Winbond Flash wait for write complete timed out after %lu milli seconds\n", wait_milliseconds);
+
+        return false;
+
+    } else {
+
+        return true;
     }
+ 
 }
 
 bool winbond_get_write_busy(pico_spi_device_t *pico_spi) {
@@ -94,7 +115,6 @@ bool winbond_set_write_enabled(pico_spi_device_t *pico_spi, bool enabled) {
 bool winbond_set_erase_enabled(pico_spi_device_t *pico_spi, bool enabled) {
 
     return winbond_set_write_enabled(pico_spi, enabled);
-
 }
 
 uint32_t winbond_set_dma_transfer_count_tx_rx(pico_spi_device_t *pico_spi, uint32_t dma_bytes_tx_rx) {
@@ -105,7 +125,6 @@ uint32_t winbond_set_dma_transfer_count_tx_rx(pico_spi_device_t *pico_spi, uint3
     dma_channel_set_transfer_count(pico_spi->dma_channel_rx, encoded_transfer_count, false);
 
     return encoded_transfer_count;
-
 }
 
 void clear_command_buffer() {

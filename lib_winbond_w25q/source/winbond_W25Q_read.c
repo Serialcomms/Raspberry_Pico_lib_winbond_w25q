@@ -12,7 +12,7 @@
 static uint32_t winbond_get_dma_bytes_read(pico_spi_device_t *pico_spi, uint32_t read_length);
 static uint32_t winbond_start_read_data_dma(pico_spi_device_t *pico_spi, uint8_t *read_buffer, size_t read_length);
 
-uint32_t winbond_read_data_spi(pico_spi_device_t *pico_spi, uint32_t read_address, uint8_t *read_buffer, size_t read_length) {
+int winbond_read_data_spi(pico_spi_device_t *pico_spi, uint32_t read_address, uint8_t *read_buffer, size_t read_length) {
     
     winbond_set_command_and_address(READ_DATA, read_address);
 
@@ -34,7 +34,7 @@ uint32_t winbond_read_data_spi(pico_spi_device_t *pico_spi, uint32_t read_addres
 
     }
     
-    return (uint32_t) spi_read_bytes;
+    return spi_read_bytes;
 }
 
 uint32_t winbond_read_data_dma(pico_spi_device_t *pico_spi, uint32_t read_address, uint8_t *read_buffer, size_t read_length) {
@@ -83,4 +83,3 @@ static uint32_t winbond_get_dma_bytes_read(pico_spi_device_t *pico_spi, uint32_t
     return read_length - (transfer_count & DMA_TRANSFER_COUNT_MASK);
 
 }
-

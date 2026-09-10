@@ -7,9 +7,7 @@
 #include "winbond_W25Q_core.h"
 #include "winbond_W25Q_main.h"
 
-//extern uint8_t query_command_buffer[12] __attribute__((aligned(4))); 
-
-extern uint8_t query_command_buffer[];
+extern uint8_t query_command_buffer[12] __attribute__((aligned(4))); 
 
 winbond_device_query_t winbond_device_query;
 winbond_device_query_t *device_query = &winbond_device_query;
@@ -65,7 +63,7 @@ uint8_t winbond_query_status_register(pico_spi_device_t *pico_spi, uint8_t regis
 
 void winbond_reset_device(pico_spi_device_t *pico_spi) {
 
-    winbond_wait_for_write_complete(pico_spi);
+    winbond_wait_for_write_complete(pico_spi, 100000);
     
     winbond_device_query.command_byte = RESET_ENABLE;
     winbond_device_query.command_length = 1;

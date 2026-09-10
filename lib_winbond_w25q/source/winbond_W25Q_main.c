@@ -11,6 +11,23 @@
 
 // collate winbond init/read/write/erase/query functions from contributing source files
 
+uint32_t lib_winbond_program_flash_page(pico_spi_device_t *pico_spi, uint32_t flash_page_address, const uint8_t *flash_page_data, uint16_t flash_page_length) {
+
+    if (flash_page_length == 0) {
+
+        return 0;
+
+    } else if (flash_page_length == 256) {
+
+        return lib_winbond_program_full_page(pico_spi, flash_page_address, flash_page_data);
+
+    } else {
+
+        return lib_winbond_program_part_page(pico_spi, flash_page_address, flash_page_data, flash_page_length);
+    }
+
+}
+
 uint32_t lib_winbond_program_full_page(pico_spi_device_t *pico_spi, uint32_t full_page_address, const uint8_t *full_page_data) {
 
     return winbond_program_full_page(pico_spi, full_page_address, full_page_data);
@@ -73,10 +90,13 @@ int lib_winbond_query_device_id(pico_spi_device_t *pico_spi, uint8_t *query_resu
 
 int lib_winbond_query_jedec_id(pico_spi_device_t *pico_spi, uint8_t *query_result) {
 
-    return winbond_query_jedec_id(pico_spi, query_result); 
+    return winbond_query_jedec_id(pico_spi, query_result);
 }
 
 void lib_winbond_init_all(pico_spi_device_t *pico_spi) {
 
     winbond_init_all(pico_spi);
 }
+
+
+
